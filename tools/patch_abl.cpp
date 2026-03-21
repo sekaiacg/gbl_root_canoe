@@ -57,7 +57,7 @@ int16_t Patched[]={
 /**
  * @return 成功修补的位点数，0 表示未找到任何匹配
  */
-int patch_abl_bootstate(char* buffer, size_t size) {
+int patch_abl_bootstate(char* buffer, size_t size, int8_t *lock_register_num,int* offset) {
     size_t pattern_len = sizeof(Original) / sizeof(int16_t);
     int patched_count = 0;
 
@@ -73,6 +73,9 @@ int patch_abl_bootstate(char* buffer, size_t size) {
             }
         }
         if (match) {
+            *lock_register_num = *(int8_t*)(&buffer[i]); // 记录锁状态寄存器的值
+            *lock_register_num &=0x1F;
+            *offset = i;
             for (size_t j = 0; j < pattern_len; ++j) {
                 if (Patched[j] != -1) {
                     buffer[i + j] = (char)Patched[j];
@@ -82,53 +85,6 @@ int patch_abl_bootstate(char* buffer, size_t size) {
             i += pattern_len - 1; // 跳过已修补区域，避免重叠匹配
         }
     }
-    return patched_count;
-}
-/*
-?? 04 80 52 ?? 4F 40 F9
-?? ?? 00 90 F7 ?? ?? 91
-?? 03 01 39 
-*/
-int16_t Original_lock_state[]={
-    -1,0x04,0x80,0x52,-1,0x4F,0x40,0xF9,
-    -1,-1,0x00,-1,0xF7,-1,-1,0x91,
-    -1,0x03,0x01,0x39
-};
-int16_t Patched_lock_state[]={
-    -1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,
-    0xFF,-1,-1,-1
-};
-int patch_abl_lock_state(char* buffer, size_t size, int8_t *lock_register_num,int* offset) {
-    size_t pattern_len = sizeof(Original_lock_state) / sizeof(int16_t);
-    int patched_count = 0;
-
-    if (size < pattern_len) return 0;
-
-    for (size_t i = 0; i <= size - pattern_len; ++i) {
-        bool match = true;
-        for (size_t j = 0; j < pattern_len; ++j) {
-            if (Original_lock_state[j] != -1 &&
-                (unsigned char)buffer[i + j] != (unsigned char)Original_lock_state[j]) {
-                match = false;
-                break;
-            }
-        }
-
-        if (match) {
-            *offset = i;
-            for (size_t j = 0; j < pattern_len; ++j) {
-                if (Patched_lock_state[j] != -1) {
-
-                    *lock_register_num = buffer[i + j]; // 记录锁状态寄存器的值
-                    buffer[i + j] = (char)Patched_lock_state[j];
-                }
-            }
-            patched_count++;
-            i += pattern_len - 1; // 跳过已修补区域，避免重叠匹配
-        }
-    }
-    // 如果未找到匹配，重置偏移量
     return patched_count;
 }
 typedef unsigned char uint8_t;
@@ -147,9 +103,58 @@ int8_t dump_register_from_LDRB(const char* instr) {
     int8_t rt = first_byte & 0x1F;
     return (int8_t)rt; // 返回寄存器编号
 }
+// 检查 size=00, V=0, opc=00 (store), 基础形式
+bool is_strb(const char* buffer, size_t offset) {
+    uint32_t instr =
+        (uint8_t)buffer[offset]             |
+        ((uint8_t)buffer[offset + 1] << 8)  |
+        ((uint8_t)buffer[offset + 2] << 16) |
+        ((uint8_t)buffer[offset + 3] << 24);
+
+    // STRB unsigned offset: bits[31:24]=0x39, bits[23:22]=00
+    if ((instr & 0xFFC00000) == 0x39000000) return true;
+
+    // STRB pre/post/unscaled: bits[31:21]=00111000000, bits[11:10]!=10(那是LDURB)
+    if ((instr & 0xFFE00C00) == 0x38000000) return true; // post-index
+    if ((instr & 0xFFE00C00) == 0x38000C00) return true; // pre-index
+
+    return false;
+}
+#define MAX 0x1000
+#define function_start 0xd503233f
+bool is_function_start(const char* buffer, size_t offset) {
+    uint32_t instr =
+        (uint8_t)buffer[offset]             |
+        ((uint8_t)buffer[offset + 1] << 8)  |
+        ((uint8_t)buffer[offset + 2] << 16) |
+        ((uint8_t)buffer[offset + 3] << 24);
+
+    return instr == function_start;
+}
+int find_strb_inst_next(char* buffer, size_t size, int8_t target_register) {
+    int now_offset = size; // 从第一个指令开始检查
+    while (1) {
+        if (is_strb(buffer, now_offset)) {
+            if (dump_register_from_LDRB(buffer + now_offset) == target_register) { // 检查是否是访问 W{target_register} 寄存器
+                printf("Found STRB instruction at offset: 0x%X\n", now_offset); //text:00000000000191C0                 STRB            W?, [SP,#0x660+var_600]
+                printf("Instruction bytes: %02X %02X %02X %02X\n", (unsigned char)buffer[now_offset], (unsigned char)buffer[now_offset + 1], (unsigned char)buffer[now_offset + 2], (unsigned char)buffer[now_offset + 3]); 
+                buffer[now_offset]|=31; // 将寄存器编号修改为 WZR/XZR
+                printf("Instruction bytes: %02X %02X %02X %02X\n", (unsigned char)buffer[now_offset], (unsigned char)buffer[now_offset + 1], (unsigned char)buffer[now_offset + 2], (unsigned char)buffer[now_offset + 3]);
+                return 0; // 找到目标 STRB 指令，返回其偏移
+            }
+        }
+        now_offset += 4; // ARM指令长度为4字节
+    }
+    
+    return -1; // 未找到STRB指令
+}
 int find_ldrB_instructio_reverse(char* buffer, size_t size, int8_t target_register) {
     int now_offset = size - 4; // 从最后一个指令开始检查
     while(1){
+        if (is_function_start(buffer, now_offset)) {
+            printf("Reached function start at offset: 0x%X, stop searching for LDRB\n", now_offset);
+            break; // 到达函数开始，停止搜索
+        }
         if (is_ldrb(buffer , now_offset)) {
 
             if (dump_register_from_LDRB(buffer + now_offset) == target_register) { // 检查是否是访问 WZR/XZR 寄存器
@@ -191,28 +196,28 @@ int main(int argc, char* argv[]) {
         delete[] data;
         return EXIT_FAILURE;
     }
-    int num_patches = patch_abl_bootstate((char*)data, size);
+    int offset=-1;
+    int8_t lock_register_num = -1;
+    int num_patches = patch_abl_bootstate((char*)data, size,&lock_register_num,&offset);
      if (num_patches == 0) {
         printf("Failed to patch ABL Boot State\n");
         delete[] data;
         return EXIT_FAILURE;
     }
+    printf("OFFSET: 0x%X\n", offset);
+    printf("Original lock register number W%d\n", (int)lock_register_num);
     printf("Patching completed successfully.\n");
     printf("Number of Boot State patches applied: %d\n", num_patches);
-    int8_t lock_register_num = -1;
-    int offset = -1;
-    num_patches = patch_abl_lock_state((char*)data, size, &lock_register_num, &offset);
-     if (num_patches == 0) {
-        printf("Failed to patch ABL Lock State\n");
+    if (find_strb_inst_next((char*)data, offset, lock_register_num) == -1) {//important
+        printf("Failed to find STRB instruction accessing W%d\n", (int)lock_register_num);
         delete[] data;
         return EXIT_FAILURE;
     }
-    printf("Number of Lock State patches applied: %d\n", num_patches);
     //remove LSB to get the lock register number
-    lock_register_num = lock_register_num & 0x1F;
-    printf("Original lock register number W%d\n", (int)lock_register_num);
-    if (find_ldrB_instructio_reverse((char*)data, offset, lock_register_num) != 0) {
+    if (find_ldrB_instructio_reverse((char*)data, offset, lock_register_num) != 0) {//not important, just for better performance, if failed to find LDRB instruction, it doesn't matter, just print a warning
         printf("Failed to find LDRB instruction accessing W%d\n", (int)lock_register_num);
+        fwrite(data, 1, size, stdout); // 输出修补后的数据到标准输出
+        printf("Warning: Failed to find LDRB instruction accessing W%d, you can not lock the bl\n", (int)lock_register_num);
         delete[] data;
         return EXIT_FAILURE;
     }
