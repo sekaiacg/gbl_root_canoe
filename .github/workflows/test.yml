@@ -10,9 +10,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: configure
-      run: ./configure
-
     - name: Install dependencies
       run: sudo apt update && sudo apt install lld clang 
 
