@@ -120,7 +120,10 @@ typedef struct device_info {
   UINT8 FdrFlag;
   UINT32 FrsSecLen; /*Holds length of FRS secret*/
   UINT8 FrsSec[DICE_HIDDEN_SIZE]; /*Holds plain secret*/
+  UINT8 padding[72];
 } DeviceInfo;
+
+STATIC_ASSERT (sizeof(DeviceInfo) == 3344, "DeviceInfo size mismatch!");
 
 struct verified_boot_verity_mode {
   BOOLEAN verity_mode_enforcing;
