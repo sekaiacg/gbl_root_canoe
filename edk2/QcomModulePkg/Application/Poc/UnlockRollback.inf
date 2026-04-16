@@ -1,0 +1,50 @@
+## @file UnlockRollback.inf
+#
+#  UEFI Application: calls QCOM_VERIFIEDBOOT_PROTOCOL.VBRwDeviceState
+#  with op=WRITE_CONFIG, 16-byte buffer (byte0=1, byte8=1).
+#
+#  Copyright (c) 2025. All rights reserved.
+#
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = unlock_rollback
+  FILE_GUID                      = A1B2C3D4-E5F6-4789-ABCD-0123456789EF
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = UefiMain
+
+[BuildOptions]
+	GCC:*_*_*_CC_FLAGS = $(LLVM_ENABLE_SAFESTACK) $(LLVM_SAFESTACK_USE_PTR) $(LLVM_SAFESTACK_COLORING)
+
+[BuildOptions.AARCH64]
+	GCC:*_*_*_CC_FLAGS = $(SDLLVM_COMPILE_ANALYZE) $(SDLLVM_ANALYZE_REPORT)
+	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_UNDEFINED)
+	GCC:*_*_*_CC_FLAGS = $(UBSAN_UEFI_GCC_FLAG_ALIGNMENT)
+	GCC:*_*_*_CC_FLAGS = $(PVMFW_USE_DUMMY_BCC)
+
+[Sources]
+  UnlockRollback.c
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  MdePkg/MdePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  QcomModulePkg/QcomModulePkg.dec
+
+[LibraryClasses]
+	DxeServicesTableLib
+	UefiLib
+	UefiApplicationEntryPoint
+	CacheMaintenanceLib
+	ArmLib
+	ArmSmcLib
+	BaseLib
+	StackCanary
+	BaseMemoryLib
+
+[Protocols]
+  gEfiQcomVerifiedBootProtocolGuid    ## CONSUMES
+

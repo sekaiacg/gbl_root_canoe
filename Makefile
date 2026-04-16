@@ -135,6 +135,14 @@ build_module: build_patcher_android build_loader
 	rm magisk_module/bin/elf_inject
 	rm magisk_module/loader.elf
 
+build_poc: build_generic
+	if [ ! -f edk2/Build/RELEASE_CLANG35/AARCH64/unlock_rollback.efi ]; then \
+		echo "Build failed"; \
+		exit 1; \
+	fi
+	cp edk2/Build/RELEASE_CLANG35/AARCH64/unlock_rollback.efi ./dist/unlock_rollback.efi
+	ls -l ./dist/unlock_rollback.efi
+
 test_exploit:
 	@echo "This script is used to test the ABL exploit. Please make sure you tested before ota."
 	@echo Please enter the Builtin Fastboot in the project. And put abl.img in the images folder. Press Enter to continue.
