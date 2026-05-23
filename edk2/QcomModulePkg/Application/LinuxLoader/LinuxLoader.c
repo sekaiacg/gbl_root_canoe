@@ -860,6 +860,42 @@ LoadAblFromPartition (CHAR8 **OutBuffer, UINT32 *OutSize)
 #endif
 #include "../../../../tools/patchlib.h"
 #endif
+
+#ifdef UNLOCK_ROLLBACK
+STATIC VOID UnlockRollback(VOID){
+
+    EFI_STATUS Status;
+    DeviceInfo DevInfo_UR;
+    BOOLEAN IsUnlocked = FALSE;
+
+    Status = ReadWriteDeviceInfo (READ_CONFIG, (VOID *)&DevInfo_UR, sizeof (DevInfo_UR));
+    if (Status != EFI_SUCCESS) {
+        Print(L"UR: READ_CONFIG failed: %r\n", Status);
+    } else {
+    	IsUnlocked = DevInfo_UR.is_unlocked == 1 && DevInfo_UR.is_unlock_critical == 1;
+    	if (!IsUnlocked) {
+    		// unlock
+    		DevInfo_UR.is_unlocked = 1;
+    		DevInfo_UR.is_unlock_critical = 1;
+    		
+    		// clear rollback
+    		for (UINT32 i = 0; i < MAX_VB_PARTITIONS; i++) {
+    			DevInfo_UR.rollback_index[i] = 0;
+    		}
+
+    		Status = ReadWriteDeviceInfo (WRITE_CONFIG, (VOID *)&DevInfo_UR, sizeof (DevInfo_UR));
+    		if (Status != EFI_SUCCESS) {
+        		Print(L"UR: WRITE_CONFIG failed: %r\n", Status);
+        		return;
+        	}
+        	IsUnlocked = TRUE;
+    	}
+    	Print(L"UR: isUnlocked: %s\n", IsUnlocked ? L"true" : L"false");
+    	gBS->Stall (2 * 1000 * 1000);
+    }
+}
+#endif
+
 STATIC VOID LoadIntegratedEfi(VOID){
 #ifndef AUTO_PATCH_ABL
     BootEfiImage(dist_ABL_efi,dist_ABL_efi_len);
@@ -930,6 +966,9 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
 
 
   UpdatePartitionEntries ();
+#ifdef UNLOCK_ROLLBACK
+    UnlockRollback();
+#endif
   /*Check for multislot boot support*/
 #ifndef TEST_ADAPTER
     Status = ReadAllowUnlockValue (&IsAllowUnlock);
