@@ -976,7 +976,7 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
     IsAllowUnlock = TRUE; // For test adapter, directly set allow unlock to true to enter fastboot
     Status = EFI_SUCCESS;
 #endif
-  if (Status != EFI_SUCCESS|| !IsAllowUnlock) {
+  if (Status != EFI_SUCCESS  || !IsAllowUnlock) {
     DEBUG ((EFI_D_ERROR, "Unable to read allow unlock value: %r\n", Status));
 #ifndef TEST_ADAPTER
     LoadIntegratedEfi();
@@ -985,9 +985,9 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
   }
 
   //wait for 5 sec for key press
-  Print(L"Press Volume Down key to enter Fastboot mode, waiting for 5 seconds into Normal mode...\n");
-  Print(L"Press Volume Up key to enter Normal mode\n");
-  INT8 KeyStatus = WaitForVolumeDownKey (5000);
+  //Print(L"Press Volume Down key to enter Fastboot mode, waiting for 5 seconds into Normal mode...\n");
+  //Print(L"Press Volume Up key to enter Normal mode\n");
+  INT8 KeyStatus = WaitForVolumeDownKey (2000);
   if(KeyStatus == 1) {
     Print(L"Volume Down key detected, entering Fastboot mode...\n");
   } else {
