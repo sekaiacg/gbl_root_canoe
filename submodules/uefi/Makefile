@@ -54,6 +54,14 @@ build_generic:
 	cp edk2/Build/RELEASE_CLANG35/AARCH64/LinuxLoader.efi ./build/generic_superfastboot.efi
 	@echo "Generic SuperFastBoot built successfully: build/generic_superfastboot.efi"
 
+build_poc: build_superfbonly
+	if [ ! -f edk2/Build/RELEASE_CLANG35/AARCH64/unlock_rollback.efi ]; then \
+		echo "Build failed"; \
+		exit 1; \
+	fi
+	cp edk2/Build/RELEASE_CLANG35/AARCH64/unlock_rollback.efi ./build/unlock_rollback.efi
+	@echo "unlock_rollback built successfully: build/unlock_rollback.efi"
+
 genfw: build
 	cp ./edk2/Build/Source/C/bin/GenFw ./build
 
