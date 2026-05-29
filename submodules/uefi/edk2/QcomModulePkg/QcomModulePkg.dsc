@@ -183,6 +183,9 @@
   !if $(AUTO_PATCH_ABL) == 1
       GCC:*_*_*_CC_FLAGS = -DAUTO_PATCH_ABL
   !endif
+  !if $(UNLOCK_ROLLBACK) == 1
+      GCC:*_*_*_CC_FLAGS = -DUNLOCK_ROLLBACK
+  !endif
     !if $(DISABLE_PRINT) == 1
       GCC:*_*_*_CC_FLAGS = -DDISABLE_PRINT
   !endif
