@@ -984,8 +984,8 @@ LinuxLoaderEntry (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
     return EFI_SUCCESS;
   }
 
-  // 等待时间改为 3 秒，不按键时不显示白字
-  INT8 KeyStatus = WaitForVolumeDownKey (3000);
+  // 等待时间改为 2 秒，不按键时不显示白字
+  INT8 KeyStatus = WaitForVolumeDownKey (2000);
   if(KeyStatus == 1) {
     Print(L"Volume Down key detected, entering Fastboot mode...\n");
   } else {
