@@ -65,6 +65,8 @@ typedef struct device_info {
   UINT8 Dice_frs[DICE_HIDDEN_SIZE];
 } DeviceInfo;
 
+STATIC_ASSERT (sizeof(DeviceInfo) == 3344, "DeviceInfo size mismatch!");
+
 /**
   Read the whole DeviceInfo blob from the persist partition via the Verified
   Boot protocol. Returns EFI_SUCCESS and fills DevInfo.
