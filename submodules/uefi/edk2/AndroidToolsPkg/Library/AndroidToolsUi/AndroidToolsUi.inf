@@ -28,6 +28,7 @@
   PrintLib
   UefiBootServicesTableLib
   UefiLib
+  StackCanary
 
 [Protocols]
   gEfiSimpleTextInProtocolGuid
