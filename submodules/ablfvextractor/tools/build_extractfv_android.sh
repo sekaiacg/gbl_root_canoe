@@ -20,8 +20,8 @@ cd "$(dirname "$0")"/../
 # ══════════════════════════════════════
 # 检查 NDK
 # ══════════════════════════════════════
-TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
-[ ! -d "$TOOLCHAIN" ] && TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/darwin-x86_64"
+TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
+[ ! -d "$TOOLCHAIN" ] && TOOLCHAIN="$DARWIN_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64"
 
 if [ ! -d "$TOOLCHAIN" ]; then
     echo "Error: NDK toolchain not found."
