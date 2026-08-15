@@ -26,6 +26,7 @@
   BaseMemoryLib
   DebugLib
   MemoryAllocationLib
+  StackCanary
   UefiApplicationEntryPoint
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
