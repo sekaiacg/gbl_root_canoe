@@ -1042,10 +1042,12 @@ SfbPreloadDrivers (IN EFI_HANDLE Volume, IN CONST CHAR16 *EntryPath)
   }
 }
 
+STATIC
 EFI_STATUS
-SfbLaunchEntry (IN CONST SFB_BOOT_ENTRY *Entry,
+SfbLaunchEntryRaw (IN CONST SFB_BOOT_ENTRY *Entry,
                 IN BOOLEAN              Temporary,
-                IN BOOLEAN              ClearScreen)
+                IN BOOLEAN              ClearScreen,
+                IN BOOLEAN              ShowBanner)
 {
   EFI_STATUS  Status;
   EFI_HANDLE  ImageHandle = NULL;
@@ -1055,13 +1057,17 @@ SfbLaunchEntry (IN CONST SFB_BOOT_ENTRY *Entry,
   if (Entry->Kind != SfbEntryEfiFile || Entry->DevicePath == NULL) {
     return EFI_INVALID_PARAMETER;
   }
+  
+  if (ShowBanner) {
+    /*
+     * Announce the launch: "Booting <name>". Clearing the screen first is only
+     * done for a menu-driven launch; an unattended default boot leaves the screen
+     * (e.g. the boot splash) untouched.
+     */
+    SfbShowBootingScreen (Entry->Desc, ClearScreen);
+  }
 
-  /*
-   * Announce the launch: "Booting <name>". Clearing the screen first is only
-   * done for a menu-driven launch; an unattended default boot leaves the screen
-   * (e.g. the boot splash) untouched.
-   */
-  SfbShowBootingScreen (Entry->Desc, ClearScreen);
+
 
   /*
    * Committing the default before the launch is deliberate: an image that boots
@@ -1102,6 +1108,22 @@ SfbLaunchEntry (IN CONST SFB_BOOT_ENTRY *Entry,
   return Status;
 }
 
+EFI_STATUS
+SfbLaunchEntry (IN CONST SFB_BOOT_ENTRY *Entry,
+                IN BOOLEAN              Temporary,
+                IN BOOLEAN              ClearScreen)
+{
+  return SfbLaunchEntryRaw (Entry, Temporary, ClearScreen, TRUE);
+}
+
+EFI_STATUS
+SfbLaunchEntryDefault (IN CONST SFB_BOOT_ENTRY *Entry,
+                IN BOOLEAN              Temporary,
+                IN BOOLEAN              ClearScreen)
+{
+  return SfbLaunchEntryRaw (Entry, Temporary, ClearScreen, FALSE);
+}
+
 BOOLEAN
 SfbLaunchDefaultEntry (VOID)
 {
@@ -1121,8 +1143,8 @@ SfbLaunchDefaultEntry (VOID)
             Menu.Entry[Menu.DefaultIndex].Desc));
     /* Returns only if the load failed or the image handed control back; the
      * caller then drops into the menu. Unattended boot: do not clear the
-     * screen when announcing "Booting <name>". */
-    SfbLaunchEntry (&Menu.Entry[Menu.DefaultIndex], FALSE, FALSE);
+     * screen. */
+    SfbLaunchEntryDefault (&Menu.Entry[Menu.DefaultIndex], FALSE, FALSE);
   }
 
   SfbFreeMenu (&Menu);
