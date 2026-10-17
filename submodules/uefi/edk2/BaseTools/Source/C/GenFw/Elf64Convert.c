@@ -86,7 +86,7 @@ typedef Elf64_Dyn Elf_Dyn;
 //
 STATIC Elf_Ehdr *mEhdr;
 STATIC Elf_Shdr *mShdrBase;
-STATIC Elf_Phdr *mPhdrBase;
+STATIC Elf_Phdr *mPhdrBase  __attribute__((unused));
 
 //
 // GOT information
